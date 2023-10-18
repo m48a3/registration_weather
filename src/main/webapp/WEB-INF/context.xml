@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Context>
+    <Resource
+            name="jdbc/db_users_weather"
+            auth="Container"
+            type="javax.sql.DataSource"
+            driverClassName="org.postgresql.Driver"
+            url="jdbc:postgresql://localhost:5432/db_users_weather"
+            username="postgres"
+            password="080900"
+            maxActive="100"
+            maxWait="10000"
+            maxIdle="10"
+            validationQuery="select 1"
+    />
+</Context>
