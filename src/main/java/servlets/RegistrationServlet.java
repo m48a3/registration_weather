@@ -8,20 +8,35 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
+/**
+ * Сервлет для обработки регистрации пользователей.
+ */
 @WebServlet(name = "RegistrationServlet", urlPatterns = "/register")
 public class RegistrationServlet extends HttpServlet {
 
+    /**
+     * Обрабатывает GET-запросы для отображения страницы регистрации.
+     *
+     * @param request  Запрос от клиента.
+     * @param response Ответ сервера.
+     * @throws IOException      Если возникает ошибка ввода/вывода.
+     * @throws ServletException Если возникает ошибка при обработке сервлета.
+     */
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        // Отобразить страницу регистрации
         request.getRequestDispatcher("/register.html").forward(request, response);
     }
+
+    /**
+     * Обрабатывает POST-запросы для обработки данных регистрации пользователя.
+     *
+     * @param request  Запрос от клиента.
+     * @param response Ответ сервера.
+     * @throws IOException Если возникает ошибка ввода/вывода.
+     */
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String username = request.getParameter("username");
         String password = request.getParameter("password");
         int cityId = Integer.parseInt(request.getParameter("city"));
-        // Валидация данных пользователя (можно добавить свои правила валидации)
-
-        // Добавление пользователя в базу данных
         try {
             Connection connection = DatabaseUtils.getConnection();
             String insertUserQuery = "INSERT INTO users (username, password, city) VALUES (?, ?, ?)";
@@ -43,5 +58,4 @@ public class RegistrationServlet extends HttpServlet {
             response.getWriter().write("Registration failed");
         }
     }
-
 }

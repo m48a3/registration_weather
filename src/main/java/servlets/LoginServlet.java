@@ -14,16 +14,35 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import org.json.JSONObject;
 
+/**
+ * Сервлет для обработки входа пользователя.
+ */
 @WebServlet(name = "LoginServlet", urlPatterns = "/login")
 public class LoginServlet extends HttpServlet {
 
     private static final String API_KEY = "ea60a55e-9bf3-485c-ad40-692d82f5b8ac"; // Замените на свой API-ключ
 
+    /**
+     * Обрабатывает GET-запросы для страницы входа.
+     *
+     * @param request  Запрос от клиента.
+     * @param response Ответ сервера.
+     * @throws IOException      Если возникает ошибка ввода/вывода.
+     * @throws ServletException Если возникает ошибка при обработке сервлета.
+     */
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
         // Отобразить страницу входа
         request.getRequestDispatcher("/login.html").forward(request, response);
     }
 
+    /**
+     * Обрабатывает POST-запросы для входа пользователя.
+     *
+     * @param request  Запрос от клиента с данными пользователя.
+     * @param response Ответ сервера.
+     * @throws IOException      Если возникает ошибка ввода/вывода.
+     * @throws ServletException Если возникает ошибка при обработке сервлета.
+     */
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String username = request.getParameter("username");
         String password = request.getParameter("password");
@@ -41,9 +60,15 @@ public class LoginServlet extends HttpServlet {
                 int userId = resultSet.getInt("id");
                 String city = resultSet.getString("city");
                 String cityFull = "";
-                if (city.equals("2")){cityFull = "Saint-Petersburg";}
-                if (city.equals("213")){cityFull = "Moscow";}
-                if (city.equals("68")){cityFull = "Kazan";}
+                if (city.equals("2")) {
+                    cityFull = "Saint-Petersburg";
+                }
+                if (city.equals("213")) {
+                    cityFull = "Moscow";
+                }
+                if (city.equals("68")) {
+                    cityFull = "Kazan";
+                }
                 HttpSession session = request.getSession();
                 session.setAttribute("userId", userId);
                 session.setAttribute("username", username);
@@ -69,6 +94,12 @@ public class LoginServlet extends HttpServlet {
         }
     }
 
+    /**
+     * Получает текущую погоду для заданного города.
+     *
+     * @param city Идентификатор города.
+     * @return Текущая температура в заданном городе.
+     */
     public String getCurrentWeather(String city) {
         if (city != null) {
             String apiUrl = "https://api.weather.yandex.ru/v2/forecast?city=" + city;
