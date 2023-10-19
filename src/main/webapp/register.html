@@ -2,19 +2,23 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Регистрация</title>
+    <title>Registration</title>
 </head>
 <body>
-<h1>Регистрация</h1>
+<h1>Registration</h1>
 <form action="/registration_weather_war_exploded/register" method="post">
-    <label for="username">Логин:</label>
+    <label for="username">Username:</label>
     <input type="text" id="username" name="username" required><br><br>
-    <label for="password">Пароль:</label>
+    <label for="password">Password:</label>
     <input type="password" id="password" name="password" required><br><br>
-    <label for="city">Город:</label>
-    <input type="text" id="city" name="city" required><br><br>
-    <input type="submit" value="Зарегистрироваться">
+    <label for="city">City:</label>
+    <select id="city" name="city" required>
+        <option value="213">Moscow</option>
+        <option value="2">Saint Petersburg</option>
+        <option value="68">Kazan</option>
+    </select><br><br>
+    <input type="submit" value="Register">
 </form>
-<p>Уже зарегистрированы? <a href="/registration_weather_war_exploded/login">Войдите</a></p>
+<p>Already registered? <a href="/registration_weather_war_exploded/login">Log in</a></p>
 </body>
 </html>

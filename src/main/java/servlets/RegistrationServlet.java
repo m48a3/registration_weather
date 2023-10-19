@@ -18,8 +18,7 @@ public class RegistrationServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String username = request.getParameter("username");
         String password = request.getParameter("password");
-        String city = request.getParameter("city");
-
+        int cityId = Integer.parseInt(request.getParameter("city"));
         // Валидация данных пользователя (можно добавить свои правила валидации)
 
         // Добавление пользователя в базу данных
@@ -29,13 +28,13 @@ public class RegistrationServlet extends HttpServlet {
             PreparedStatement preparedStatement = connection.prepareStatement(insertUserQuery);
             preparedStatement.setString(1, username);
             preparedStatement.setString(2, password);
-            preparedStatement.setString(3, city);
+            preparedStatement.setInt(3, cityId);
             int rowsInserted = preparedStatement.executeUpdate();
             preparedStatement.close();
             connection.close();
 
             if (rowsInserted > 0) {
-                response.getWriter().write("Registration successful");
+                response.sendRedirect("login.html");
             } else {
                 response.getWriter().write("Registration failed");
             }
@@ -44,4 +43,5 @@ public class RegistrationServlet extends HttpServlet {
             response.getWriter().write("Registration failed");
         }
     }
+
 }
