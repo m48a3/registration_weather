@@ -1,6 +1,24 @@
-<%@ page import="servlets.AdminServlet" %>
+<%@ page import="servlets.User" %>
 <%@ page import="java.util.List" %>
-<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ page import="servlets.DatabaseUtils" %>
+<%@ page import="org.hibernate.Session" %>
+<%@ page import="org.hibernate.query.Query" %>
+
+<%
+    List<User> getAllUsers() {
+    List<User> users = null;
+    try (Session hibernateSession = DatabaseUtils.getSessionFactory().openSession()) {
+        Query<User> query = hibernateSession.createQuery("FROM User", User.class);
+        users = query.list();
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+    return users;
+}
+
+    List<User> users = getAllUsers();
+%>
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -13,27 +31,26 @@
 <!-- Display the list of users and a form for deletion -->
 <form method="post" action="admin">
     <table>
+        <thead>
         <tr>
             <th>Select</th>
             <th>ID</th>
             <th>Username</th>
             <th>Action</th>
         </tr>
-        <%
-            List<AdminServlet.User> users = (List<AdminServlet.User>) request.getAttribute("users");
-            if (users != null && !users.isEmpty()) {
-                for (AdminServlet.User user : users) {
-        %>
+        </thead>
+        <tbody>
+        <% if (users != null && !users.isEmpty()) { %>
+        <% for (User user : users) { %>
         <tr>
             <td><input type="checkbox" name="selectedUsers" value="<%= user.getId() %>"></td>
             <td><%= user.getId() %></td>
             <td><%= user.getUsername() %></td>
             <td>Delete</td>
         </tr>
-        <%
-                }
-            }
-        %>
+        <% } %>
+        <% } %>
+        </tbody>
     </table>
     <input type="submit" value="Delete Selected Users">
 </form>
