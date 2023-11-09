@@ -1,32 +1,32 @@
 package servlets;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
+import org.hibernate.SessionFactory;
+import org.hibernate.boot.Metadata;
+import org.hibernate.boot.MetadataSources;
+import org.hibernate.boot.registry.StandardServiceRegistry;
+import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 
-/**
- * Этот класс предоставляет методы утилит для работы с базой данных и установления соединения.
- */
 public class DatabaseUtils {
-    private static final String URL = "jdbc:postgresql://localhost:5432/db_users_weather";
-    private static final String USER = "postgres";
-    private static final String PASSWORD = "080900";
+    private static final SessionFactory sessionFactory = buildSessionFactory();
 
-    static {
+    private static SessionFactory buildSessionFactory() {
         try {
-            Class.forName("org.postgresql.Driver");
-        } catch (ClassNotFoundException e) {
+            StandardServiceRegistry standardRegistry = new StandardServiceRegistryBuilder()
+                    .configure("hibernate.cfg.xml")
+                    .build();
+
+            Metadata metadata = new MetadataSources(standardRegistry)
+                    .getMetadataBuilder()
+                    .build();
+
+            return metadata.getSessionFactoryBuilder().build();
+        } catch (Exception e) {
             e.printStackTrace();
+            throw new RuntimeException("Error building the SessionFactory");
         }
     }
 
-    /**
-     * Устанавливает соединение с базой данных.
-     *
-     * @return Соединение с базой данных.
-     * @throws SQLException Если не удается установить соединение с базой данных.
-     */
-    public static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(URL, USER, PASSWORD);
+    public static SessionFactory getSessionFactory() {
+        return sessionFactory;
     }
 }
