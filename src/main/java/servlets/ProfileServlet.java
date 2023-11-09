@@ -12,6 +12,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Comparator;
+import java.util.Set;
+
+import org.hibernate.*;
 import org.json.JSONObject;
 
 /**
@@ -34,23 +38,38 @@ public class ProfileServlet extends HttpServlet {
 
         if (session.getAttribute("username") != null) {
             String username = (String) session.getAttribute("username");
-            String city = (String) session.getAttribute("city");
 
-            WeatherRequest lastRequest = getLastWeatherRequestForUser(username);
+            try {
+                Session hibernateSession = DatabaseUtils.getSessionFactory().openSession();
+                Transaction transaction = hibernateSession.beginTransaction();
 
-            if (lastRequest != null) {
-                request.setAttribute("city", lastRequest.getCity());
-                request.setAttribute("temperature", lastRequest.getTemperature());
-                request.setAttribute("weatherRequest", lastRequest);
-            } else {
-                request.setAttribute("city", "");
-                request.setAttribute("temperature", "");
+                // Используем HQL для получения пользователя и его последнего запроса
+                Query<User> query = hibernateSession.createQuery("FROM User u LEFT JOIN FETCH u.userWeatherRequests WHERE u.username = :username", User.class);
+                query.setParameter("username", username);
+                User user = query.uniqueResult();
+
+                transaction.commit();
+                hibernateSession.close();
+
+                if (user != null) {
+                    Set<UserWeatherRequest> weatherRequests = user.getUserWeatherRequests();
+                    UserWeatherRequest lastRequest = null;
+
+                    if (weatherRequests != null && !weatherRequests.isEmpty()) {
+                        lastRequest = weatherRequests.stream().max(java.util.Comparator.comparing(UserWeatherRequest::getRequestTime)).get();
+                    }
+
+                    request.setAttribute("user", user);
+                    request.setAttribute("lastRequest", lastRequest);
+                    request.getRequestDispatcher("/profile.jsp").forward(request, response);
+                    return;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-            request.setAttribute("username", username);
-            request.getRequestDispatcher("/profile.jsp").forward(request, response);
-        } else {
-            response.sendRedirect("login.html");
         }
+
+        response.sendRedirect("login.html");
     }
 
     /**
@@ -89,18 +108,23 @@ public class ProfileServlet extends HttpServlet {
      */
     private boolean createWeatherRequest(String username, String city, String temperature) {
         try {
-            Connection connection = DatabaseUtils.getConnection();
+            Session hibernateSession = DatabaseUtils.getSessionFactory().openSession();
+            Transaction transaction = hibernateSession.beginTransaction();
 
-            String insertRequestQuery = "INSERT INTO weather_requests (user_id, city, temperature) VALUES ((SELECT id FROM users WHERE username = ?), ?, ?)";
-            PreparedStatement preparedStatement = connection.prepareStatement(insertRequestQuery);
-            preparedStatement.setString(1, username);
-            preparedStatement.setString(2, city);
-            preparedStatement.setString(3, temperature);
+            // Создаем запись о погодном запросе
+            User user = getUserByUsername(username);
+            if (user != null) {
+                UserWeatherRequest weatherRequest = new UserWeatherRequest();
+                weatherRequest.setUser(user);
+                weatherRequest.setCity(city);
+                weatherRequest.setTemperature(temperature);
 
-            preparedStatement.executeUpdate();
-            preparedStatement.close();
-            connection.close();
-        } catch (SQLException e) {
+                hibernateSession.save(weatherRequest);
+            }
+
+            transaction.commit();
+            hibernateSession.close();
+        } catch (Exception e) {
             e.printStackTrace();
             return false;
         }
@@ -108,41 +132,28 @@ public class ProfileServlet extends HttpServlet {
     }
 
     /**
-     * Получает последний погодный запрос для пользователя.
+     * Получает пользователя по имени пользователя.
      *
      * @param username Имя пользователя.
-     * @return Объект WeatherRequest с последним запросом, или null, если запросы отсутствуют.
+     * @return Объект User или null, если пользователь не найден.
      */
-    private WeatherRequest getLastWeatherRequestForUser(String username) {
-        WeatherRequest lastWeatherRequest = null;
-
+    private User getUserByUsername(String username) {
         try {
-            Connection connection = DatabaseUtils.getConnection();
+            Session hibernateSession = DatabaseUtils.getSessionFactory().openSession();
+            Transaction transaction = hibernateSession.beginTransaction();
 
-            String selectRequestQuery = "SELECT city, temperature, request_time FROM weather_requests " +
-                    "WHERE user_id = (SELECT id FROM users WHERE username = ?) " +
-                    "ORDER BY request_time DESC LIMIT 1";
+            Query<User> query = hibernateSession.createQuery("FROM User WHERE username = :username", User.class);
+            query.setParameter("username", username);
+            User user = query.uniqueResult();
 
-            PreparedStatement preparedStatement = connection.prepareStatement(selectRequestQuery);
-            preparedStatement.setString(1, username);
-            ResultSet resultSet = preparedStatement.executeQuery();
+            transaction.commit();
+            hibernateSession.close();
 
-            if (resultSet.next()) {
-                String city = resultSet.getString("city");
-                String temperature = resultSet.getString("temperature");
-                String requestTime = resultSet.getString("request_time");
-
-                lastWeatherRequest = new WeatherRequest(city, temperature, requestTime);
-            }
-
-            resultSet.close();
-            preparedStatement.close();
-            connection.close();
-        } catch (SQLException e) {
+            return user;
+        } catch (Exception e) {
             e.printStackTrace();
+            return null;
         }
-
-        return lastWeatherRequest;
     }
 
     /**

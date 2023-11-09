@@ -1,13 +1,15 @@
 package servlets;
 
+import org.hibernate.Session;
+import org.hibernate.Transaction;
+import org.hibernate.query.Query;
+
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.*;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 
 /**
  * Сервлет для обработки регистрации пользователей.
@@ -52,50 +54,38 @@ public class RegistrationServlet extends HttpServlet {
         }
 
         try {
-            Connection connection = DatabaseUtils.getConnection();
-            String insertUserQuery = "INSERT INTO users (username, password, city) VALUES (?, ?, ?)";
-            PreparedStatement preparedStatement = connection.prepareStatement(insertUserQuery);
-            preparedStatement.setString(1, username);
-            preparedStatement.setString(2, password);
-            preparedStatement.setInt(3, cityId);
-            int rowsInserted = preparedStatement.executeUpdate();
-            preparedStatement.close();
+            Session hibernateSession = DatabaseUtils.getSessionFactory().openSession();
+            Transaction transaction = hibernateSession.beginTransaction();
 
-            if (rowsInserted > 0) {
-                if (isAdmin) {
-                    // Add the user to the admins table
-                    addAdmin(username);
-                    // Redirect to the admin panel
-                    response.sendRedirect("admin");
-                } else {
-                    // Redirect to the regular profile page
-                    response.sendRedirect("profile");
-                }
-            } else {
-                response.getWriter().write("Registration failed");
+            // Создаем пользователя
+            User user = new User();
+            user.setUsername(username);
+            user.setPassword(password);
+            user.setCity(String.valueOf(cityId));
+
+            // Сохраняем пользователя в базе данных
+            hibernateSession.save(user);
+
+            if (isAdmin) {
+                // Если пользователь админ, создаем соответствующую запись
+                Admin admin = new Admin();
+                admin.setUser(user);
+
+                hibernateSession.save(admin);
             }
 
-            connection.close();
-        } catch (SQLException e) {
+            transaction.commit();
+            hibernateSession.close();
+
+            if (isAdmin) {
+                response.sendRedirect("admin");
+            } else {
+                response.sendRedirect("profile");
+            }
+        } catch (Exception e) {
             e.printStackTrace();
             response.getWriter().write("Registration failed");
         }
-    }
-
-    /**
-     * Добавляет пользователя в таблицу администраторов.
-     *
-     * @param username Имя пользователя, которого нужно сделать администратором.
-     * @throws SQLException Если произошла ошибка SQL.
-     */
-    private void addAdmin(String username) throws SQLException {
-        Connection connection = DatabaseUtils.getConnection();
-        String insertAdminQuery = "INSERT INTO admins (user_id) VALUES ((SELECT id FROM users WHERE username = ?))";
-        PreparedStatement preparedStatement = connection.prepareStatement(insertAdminQuery);
-        preparedStatement.setString(1, username);
-        preparedStatement.executeUpdate();
-        preparedStatement.close();
-        connection.close();
     }
 
     /**
@@ -106,20 +96,17 @@ public class RegistrationServlet extends HttpServlet {
      */
     private boolean userExists(String username) {
         try {
-            Connection connection = DatabaseUtils.getConnection();
-            String checkUserQuery = "SELECT id FROM users WHERE username = ?";
-            PreparedStatement preparedStatement = connection.prepareStatement(checkUserQuery);
-            preparedStatement.setString(1, username);
-            ResultSet resultSet = preparedStatement.executeQuery();
+            Session hibernateSession = DatabaseUtils.getSessionFactory().openSession();
 
-            boolean exists = resultSet.next();
+            // Проверяем существование пользователя с заданным именем
+            Query<User> query = hibernateSession.createQuery("FROM User WHERE username = :username", User.class);
+            query.setParameter("username", username);
+            User user = query.uniqueResult();
 
-            resultSet.close();
-            preparedStatement.close();
-            connection.close();
+            hibernateSession.close();
 
-            return exists;
-        } catch (SQLException e) {
+            return user != null;
+        } catch (Exception e) {
             e.printStackTrace();
             return false;
         }

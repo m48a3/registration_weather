@@ -1,81 +1,62 @@
 package servlets;
 
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.Transaction;
+
+import javax.persistence.Query;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
 import java.io.IOException;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-/**
- * Сервлет для обработки входа пользователя.
- */
 @WebServlet(name = "LoginServlet", urlPatterns = "/login")
 public class LoginServlet extends HttpServlet {
 
-    /**
-     * Обрабатывает GET-запросы для страницы входа.
-     *
-     * @param request  Запрос от клиента.
-     * @param response Ответ сервера.
-     * @throws IOException      Если возникает ошибка ввода/вывода.
-     * @throws ServletException Если возникает ошибка при обработке сервлета.
-     */
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
-        // Отобразить страницу входа
         request.getRequestDispatcher("/login.html").forward(request, response);
     }
 
-    /**
-     * Обрабатывает POST-запросы для входа пользователя.
-     *
-     * @param request  Запрос от клиента с данными пользователя.
-     * @param response Ответ сервера.
-     * @throws IOException      Если возникает ошибка ввода/вывода.
-     * @throws ServletException Если возникает ошибка при обработке сервлета.
-     */
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String username = request.getParameter("username");
         String password = request.getParameter("password");
 
         try {
-            Connection connection = DatabaseUtils.getConnection();
-            String selectUserQuery = "SELECT u.id, u.city, a.admin_id FROM users u " +
-                    "LEFT JOIN admins a ON u.id = a.user_id " +
-                    "WHERE u.username = ? AND u.password = ?";
-            PreparedStatement preparedStatement = connection.prepareStatement(selectUserQuery);
-            preparedStatement.setString(1, username);
-            preparedStatement.setString(2, password);
-            ResultSet resultSet = preparedStatement.executeQuery();
+            SessionFactory sessionFactory = DatabaseUtils.getSessionFactory();
+            try (Session session = sessionFactory.openSession()) {
+                // Используем HQL (Hibernate Query Language) для получения данных пользователя и админа
+                Query query = session.createQuery("SELECT u.id, u.city, ua.admin FROM User u " +
+                        "LEFT JOIN UserAdmin ua ON u.id = ua.userId " +
+                        "WHERE u.username = :username AND u.password = :password");
+                query.setParameter("username", username);
+                query.setParameter("password", password);
 
-            if (resultSet.next()) {
-                int userId = resultSet.getInt("id");
-                String city = resultSet.getString("city");
-                boolean isAdmin = resultSet.getInt("admin_id") != 0;
+                Object[] result = (Object[]) ((org.hibernate.query.Query<?>) query).uniqueResult();
 
-                HttpSession session = request.getSession();
-                session.setAttribute("userId", userId);
-                session.setAttribute("username", username);
-                session.setAttribute("city", city);
-                session.setAttribute("isAdmin", isAdmin);
+                if (result != null) {
+                    int userId = (int) result[0];
+                    String city = (String) result[1];
+                    boolean isAdmin = result[2] != null;
 
-                if (isAdmin) {
+                    HttpSession httpSession = request.getSession();
+                    httpSession.setAttribute("userId", userId);
+                    httpSession.setAttribute("username", username);
+                    httpSession.setAttribute("city", city);
+                    httpSession.setAttribute("isAdmin", isAdmin);
 
-                    response.sendRedirect("admin");
+                    if (isAdmin) {
+                        response.sendRedirect("admin");
+                    } else {
+                        response.sendRedirect("profile");
+                    }
                 } else {
-
-                    response.sendRedirect("profile");
+                    response.getWriter().write("Login failed");
                 }
-            } else {
-                response.getWriter().write("Login failed");
             }
-
-            resultSet.close();
-            preparedStatement.close();
-            connection.close();
-        } catch (SQLException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             response.getWriter().write("Login failed");
         }
